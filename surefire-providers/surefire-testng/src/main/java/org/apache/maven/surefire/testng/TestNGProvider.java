@@ -40,6 +40,7 @@ import org.apache.maven.surefire.util.TestsToRun;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -109,13 +110,23 @@ public class TestNGProvider
         RunResult runResult;
         try
         {
-            if ( isTestNGXmlTestSuite( testRequest ) )
+            boolean testSetIsFile = ( forkTestSet instanceof File );
+            if ( isTestNGXmlTestSuite( testRequest ) || testSetIsFile )
             {
                 if ( commandsReader != null )
                 {
                     commandsReader.awaitStarted();
                 }
-                TestNGXmlTestSuite testNGXmlTestSuite = newXmlSuite();
+
+                TestNGXmlTestSuite testNGXmlTestSuite;
+                if ( testSetIsFile )
+                {
+                    testNGXmlTestSuite = newXmlSuite( Collections.singletonList( (File) forkTestSet ) );
+                }
+                else
+                {
+                    testNGXmlTestSuite = newXmlSuite( testRequest.getSuiteXmlFiles() );
+                }
                 testNGXmlTestSuite.locateTestSets();
                 testNGXmlTestSuite.execute( reporter );
             }
@@ -200,9 +211,9 @@ public class TestNGProvider
                                              mainCliOptions, getSkipAfterFailureCount() );
     }
 
-    private TestNGXmlTestSuite newXmlSuite()
+    private TestNGXmlTestSuite newXmlSuite( List<File> testSuiteXmlFiles )
     {
-        return new TestNGXmlTestSuite( testRequest.getSuiteXmlFiles(),
+        return new TestNGXmlTestSuite( testSuiteXmlFiles,
                                        testRequest.getTestSourceDirectory().toString(),
                                        providerProperties,
                                        reporterConfiguration.getReportsDirectory(), getSkipAfterFailureCount() );
@@ -216,7 +227,7 @@ public class TestNGProvider
         {
             try
             {
-                return newXmlSuite().locateTestSets();
+                return newXmlSuite( testRequest.getSuiteXmlFiles() ).locateTestSets();
             }
             catch ( TestSetFailedException e )
             {
